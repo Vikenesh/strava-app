@@ -2,12 +2,12 @@ import requests
 import time
 import datetime
 import sqlite3
+from collections import defaultdict
 
 CLIENT_ID = '130483'  # Replace with your Strava client ID
 CLIENT_SECRET = 'd4088d3c389b9e6c31753f62ef381ee65b8c5713'  # Replace with your Strava client secret
 REFRESH_TOKEN = 'd5bb6b81044b0ae8735f30d2fcc6e0a32f9f3985'  # Replace with your Strava refresh token
 
-# Function to refresh access token
 def refresh_access_token():
     url = 'https://www.strava.com/oauth/token'
     payload = {
@@ -24,8 +24,8 @@ def refresh_access_token():
         print('Error refreshing token:', response.status_code, response.text)
         return None
 
-ACCESS_TOKEN = '40137b9501289653197b2f12c18f96fd3e5b46f8'
-#ACCESS_TOKEN = refresh_access_token()
+ACCESS_TOKEN = '84eacdbaa980c9140e965463ad75764b3ef60f13'
+# ACCESS_TOKEN = refresh_access_token()
 
 def save_activities_to_db(activities):
     conn = sqlite3.connect('strava_activities.db')
@@ -41,7 +41,6 @@ def save_activities_to_db(activities):
         date_str = activity.get('start_date_local', '')
         if not date_str:
             continue
-        import datetime
         date_obj = datetime.datetime.strptime(date_str[:10], '%Y-%m-%d')
         week_start = date_obj - datetime.timedelta(days=date_obj.weekday())
         week_label = week_start.strftime('%Y-%m-%d')
@@ -69,20 +68,23 @@ if ACCESS_TOKEN:
         activities = response.json()
         save_activities_to_db(activities)
         print(f'Athlete: {athlete_name}')
-        print('Monthly Activities (split by calendar week):')
-        import datetime
-        from collections import defaultdict
+
+        # Calculate and print monthly mileage
+        monthly_mileage = sum(activity.get('distance', 0) for activity in activities) / 1000  # meters to km
+        print(f'Total Monthly Mileage: {monthly_mileage:.2f} km')
+
+        # Group activities by calendar week
         weeks = defaultdict(list)
         for activity in activities:
             date_str = activity.get('start_date_local', '')
             if not date_str:
                 continue
             date_obj = datetime.datetime.strptime(date_str[:10], '%Y-%m-%d')
-            # Find the Monday of the week for this activity
             week_start = date_obj - datetime.timedelta(days=date_obj.weekday())
             week_label = week_start.strftime('%Y-%m-%d')
             weeks[week_label].append(activity)
         # Sort weeks by date (descending)
+        print('Monthly Activities (split by calendar week):')
         for week_label in sorted(weeks.keys(), reverse=True):
             print(f'\nWeek starting {week_label}:')
             for activity in weeks[week_label]:
