@@ -74,6 +74,34 @@ def save_activities_to_db(activities):
     conn.commit()
     conn.close()
 
+
+def fetch_and_save_activities_for_all():
+    now = int(time.time())
+    four_weeks_ago = now - 28 * 24 * 60 * 60
+    url_template = 'https://www.strava.com/api/v3/athlete/activities?after={after}'
+    for athlete in get_all_athletes():
+        athlete_id, firstname, lastname, access_token = athlete
+        url = url_template.format(after=four_weeks_ago)
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            activities = response.json()
+            conn = sqlite3.connect('strava_activities.db')
+            c = conn.cursor()
+            for activity in activities:
+                date_str = activity.get('start_date_local', '')
+                if not date_str:
+                    continue
+                date_obj = datetime.datetime.strptime(date_str[:10], '%Y-%m-%d')
+                week_start = date_obj - datetime.timedelta(days=date_obj.weekday())
+                week_label = week_start.strftime('%Y-%m-%d')
+                c.execute('''INSERT OR IGNORE INTO activities (id, athlete_id, name, distance, start_date_local, week_start) VALUES (?, ?, ?, ?, ?, ?)''',
+                          (activity.get('id'), athlete_id, activity.get('name', 'No Name'), activity.get('distance', 0), date_str, week_label))
+            conn.commit()
+            conn.close()
+            print(f"Saved activities for {firstname} {lastname}")
+        else:
+            print(f"Error for {firstname} {lastname}: {response.status_code}")
 if ACCESS_TOKEN:
     now = int(time.time())
     four_weeks_ago = now - 28 * 24 * 60 * 60
@@ -119,6 +147,8 @@ if ACCESS_TOKEN:
 else:
     print('Could not refresh access token.')
 
+setup_db()
+fetch_and_save_activities_for_all()
 # Step 1: Get a new authorization code
 # Visit this URL in your browser (replace REDIRECT_URI if needed):
 # https://www.strava.com/oauth/authorize?client_id=130483&response_type=code&redirect_uri=http://localhost/exchange_token&scope=activity:read&approval_prompt=force
