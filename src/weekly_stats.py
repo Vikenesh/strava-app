@@ -27,6 +27,31 @@ def refresh_access_token():
 ACCESS_TOKEN = '84eacdbaa980c9140e965463ad75764b3ef60f13'
 # ACCESS_TOKEN = refresh_access_token()
 
+# ...existing code...
+def setup_db():
+    conn = sqlite3.connect('strava_activities.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS athletes (
+        id INTEGER PRIMARY KEY,
+        firstname TEXT,
+        lastname TEXT,
+        access_token TEXT,
+        refresh_token TEXT
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS activities (
+        id INTEGER PRIMARY KEY,
+        athlete_id INTEGER,
+        name TEXT,
+        distance REAL,
+        start_date_local TEXT,
+        week_start TEXT,
+        FOREIGN KEY (athlete_id) REFERENCES athletes(id)
+    )''')
+    conn.commit()
+    conn.close()
+# ...existing code...
+setup_db()
+
 def save_activities_to_db(activities):
     conn = sqlite3.connect('strava_activities.db')
     c = conn.cursor()
